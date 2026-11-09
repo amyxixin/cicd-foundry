@@ -1,0 +1,12 @@
+# Default owners for all files
+* @amyxixin
+
+# Pipeline definitions
+azure-devops-pipeline.yml @amyxixin
+github-actions-pipeline.yml @amyxixin
+
+# Governance docs
+README.md @amyxixin
+SECURITY.md @amyxixin
+CONTRIBUTING.md @amyxixin
+LICENSE @amyxixin
