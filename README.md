@@ -116,6 +116,10 @@ configure:
 | Secret | `AZURE_CLIENT_ID` | Entra application or user-assigned identity client ID |
 | Secret | `AZURE_TENANT_ID` | Azure tenant ID |
 
+Secrets may also be configured at repository scope. The caller passes only
+these two named secrets to the reusable promotion workflow; secrets configured
+on the destination environment take precedence for that job.
+
 Use distinct destination projects for environment isolation. The same model
 deployment name must exist in all three. The selected project for this demo can
 be configured as Dev; Test and Production must be supplied before promotion.

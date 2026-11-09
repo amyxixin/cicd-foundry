@@ -2,6 +2,11 @@ name: Promote validated prompt agent
 
 on:
   workflow_call:
+    secrets:
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
     inputs:
       environment:
         type: string
