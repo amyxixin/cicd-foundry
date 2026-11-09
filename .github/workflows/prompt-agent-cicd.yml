@@ -1,4 +1,5 @@
 name: Prompt Agent CI/CD
+run-name: ${{ github.event_name == 'pull_request' && 'validate prompt agent' || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'test' && 'deploy test agent') || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'prod' && 'deploy production agent') || 'deploy dev agent' }}
 
 on:
   push:
