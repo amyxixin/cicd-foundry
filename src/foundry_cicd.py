@@ -17,7 +17,7 @@ from azure.ai.projects.models import (
     TextResponseFormatJsonSchema,
 )
 from azure.identity import AzureCliCredential, DefaultAzureCredential
-from openai import OpenAI, OpenAIError
+from openai import BadRequestError, OpenAI, OpenAIError
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -139,9 +139,13 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, float]:
         raise ValueError("Evaluation dataset cannot be empty")
     latencies = sorted(row["latency_ms"] for row in rows)
     return {
-        "invalid_output_rate": sum(not row["valid"] for row in rows) / len(rows),
+        "invalid_output_rate": sum(
+            not row["valid"] and not row.get("content_filtered", False) for row in rows
+        )
+        / len(rows),
         "task_completion": sum(row["correct"] for row in rows) / len(rows),
         "latency_p95_ms": latencies[math.ceil(0.95 * len(rows)) - 1],
+        "content_filter_count": sum(row.get("content_filtered", False) for row in rows),
     }
 
 
@@ -179,6 +183,8 @@ def evaluate(
             not isinstance(case.get("input"), str)
             or not case["input"].strip()
             or case.get("expected_decision") not in ("approve", "block")
+            or not isinstance(case.get("allow_content_filter", False), bool)
+            or (case.get("allow_content_filter") and case["expected_decision"] != "block")
         ):
             raise ValueError(f"Invalid evaluation case: {case!r}")
     remote = client.agents.get_version(manifest["name"], manifest["version"])
@@ -195,13 +201,23 @@ def evaluate(
             try:
                 text = invoke(openai, manifest["name"], manifest["version"], case["input"])
             except OpenAIError as error:
+                accepted_filter = (
+                    case.get("allow_content_filter", False)
+                    and isinstance(error, BadRequestError)
+                    and error.code == "content_filter"
+                )
                 rows.append(
                     {
                         **case,
                         "response": None,
-                        "error": str(error),
-                        "valid": False,
-                        "correct": False,
+                        **(
+                            {"filter_reason": str(error)}
+                            if accepted_filter
+                            else {"error": str(error)}
+                        ),
+                        "content_filtered": accepted_filter,
+                        "valid": None if accepted_filter else False,
+                        "correct": accepted_filter,
                         "latency_ms": (time.perf_counter() - started) * 1000,
                     }
                 )

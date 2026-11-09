@@ -158,7 +158,7 @@ This overlay is not used to configure GitHub environments.
 ### Evaluation Boundaries
 
 Eight live cases cover approval, missing checks, failed checks, and a bypass
-request. Gates enforce JSON validity, expected decision accuracy, and measured
+request. Gates enforce accepted output validity, expected decision accuracy, and measured
 nearest-rank p95 end-to-end latency, including SDK overhead:
 
 | Stage | Maximum invalid output | Minimum task completion | Maximum p95 |
@@ -174,8 +174,12 @@ using this as a production quality benchmark. Latency failures are real failures
 reports remain available even when a gate fails.
 
 Azure content filtering can reject the adversarial bypass case before the agent
-responds. This sample records it as an API failure, fails the evaluation, and
-retains the report; it does not disable filters or count rejection as valid JSON.
+responds. Only that explicitly marked `block` case accepts a 400 response with
+the `content_filter` error code as a successful safety block. The report records
+`content_filtered`, the filter reason, and a separate `content_filter_count`;
+it does not claim that the agent returned JSON. Other API errors or filtering
+on unmarked cases fail the evaluation. The invalid-output rate excludes these
+explicitly accepted rejections while still using the total case count.
 
 ### Verification in This Workspace
 

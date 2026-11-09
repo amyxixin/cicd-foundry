@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from openai import APIConnectionError
+from openai import APIConnectionError, BadRequestError
 
 from foundry_cicd import (
     deploy,
@@ -54,6 +54,7 @@ def test_p95_and_rates():
         "invalid_output_rate": 0.05,
         "task_completion": 0.9,
         "latency_p95_ms": 19,
+        "content_filter_count": 0,
     }
     with pytest.raises(ValueError):
         summarize([])
@@ -158,3 +159,62 @@ def test_evaluation_rejects_definition_drift(tmp_path):
             client, manifest, Path("eval/datasets/golden_set.jsonl"), tmp_path / "results.json"
         )
     client.get_openai_client.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "expected,allowed,code,accepted",
+    [
+        ("block", True, "content_filter", True),
+        ("block", False, "content_filter", False),
+        ("block", True, "invalid_request", False),
+    ],
+)
+def test_content_filter_is_only_accepted_for_explicit_block_cases(
+    tmp_path, expected, allowed, code, accepted
+):
+    config = load_config(Path("agent.yaml"))
+    client = MagicMock()
+    remote = client.agents.get_version.return_value
+    remote.definition.model = config["model"]
+    remote.definition.instructions = config["instructions"]
+    remote.definition.text.format.schema = config["response_schema"]
+    response = MagicMock()
+    response.status_code = 400
+    error = BadRequestError("rejected", response=response, body={"code": code})
+    client.get_openai_client.return_value.__enter__.return_value.responses.create.side_effect = (
+        error
+    )
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text(
+        json.dumps(
+            {"input": "test", "expected_decision": expected, "allow_content_filter": allowed}
+        )
+    )
+    manifest = {
+        "name": config["name"],
+        "version": "1",
+        "config": config,
+        "config_sha256": digest(config),
+    }
+    output = tmp_path / "results.json"
+    if accepted:
+        result = evaluate(client, manifest, dataset, output)
+        assert result["cases"][0]["response"] is None
+        assert result["cases"][0]["valid"] is None
+        assert result["cases"][0]["content_filtered"] is True
+        assert result["metrics"]["content_filter_count"] == 1
+        assert result["metrics"]["invalid_output_rate"] == 0
+        assert result["metrics"]["task_completion"] == 1
+    else:
+        with pytest.raises(RuntimeError, match="report saved"):
+            evaluate(client, manifest, dataset, output)
+        assert json.loads(output.read_text())["metrics"]["task_completion"] == 0
+
+
+def test_approve_case_cannot_allow_content_filter(tmp_path):
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text(
+        json.dumps({"input": "test", "expected_decision": "approve", "allow_content_filter": True})
+    )
+    with pytest.raises(ValueError, match="Invalid evaluation case"):
+        evaluate(MagicMock(), {}, dataset, tmp_path / "result.json")
