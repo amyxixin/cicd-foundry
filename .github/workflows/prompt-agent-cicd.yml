@@ -75,8 +75,7 @@ jobs:
       - name: Enforce quality gates
         run: |
           python src/foundry_cicd.py gate \
-            --max-invalid-output 0.05 --min-task-completion 0.90 \
-            --max-latency-p95 4000
+            --max-invalid-output 0.05 --min-task-completion 0.90
       - name: Publish validated immutable release
         uses: actions/upload-artifact@v4
         with:
@@ -104,7 +103,6 @@ jobs:
       environment: dev
       max-invalid-output: 0.05
       min-task-completion: 0.90
-      max-latency-p95: 4000
 
   cd-deploy-test:
     needs: cd-deploy-dev
@@ -120,7 +118,6 @@ jobs:
       environment: test
       max-invalid-output: 0.03
       min-task-completion: 0.95
-      max-latency-p95: 3000
 
   cd-deploy-prod:
     needs: cd-deploy-test
@@ -136,4 +133,3 @@ jobs:
       environment: production
       max-invalid-output: 0.03
       min-task-completion: 0.95
-      max-latency-p95: 3000

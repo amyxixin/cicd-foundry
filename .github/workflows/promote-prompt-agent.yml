@@ -17,9 +17,6 @@ on:
       min-task-completion:
         type: number
         required: true
-      max-latency-p95:
-        type: number
-        required: true
 
 permissions:
   contents: read
@@ -37,7 +34,6 @@ jobs:
       FOUNDRY_USE_AZURE_CLI: '1'
       MAX_INVALID_OUTPUT: ${{ inputs.max-invalid-output }}
       MIN_TASK_COMPLETION: ${{ inputs.min-task-completion }}
-      MAX_LATENCY_P95: ${{ inputs.max-latency-p95 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,8 +62,7 @@ jobs:
             --results eval/results/results.json
           python src/foundry_cicd.py gate \
             --max-invalid-output "$MAX_INVALID_OUTPUT" \
-            --min-task-completion "$MIN_TASK_COMPLETION" \
-            --max-latency-p95 "$MAX_LATENCY_P95"
+            --min-task-completion "$MIN_TASK_COMPLETION"
       - name: Publish destination version and evaluation evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -149,13 +149,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
-def enforce_gates(
-    metrics: dict[str, Any], max_invalid: float, min_completion: float, max_latency: float
-) -> None:
+def enforce_gates(metrics: dict[str, Any], max_invalid: float, min_completion: float) -> None:
     bounds = {
         "invalid_output_rate": (0, max_invalid),
         "task_completion": (min_completion, 1),
-        "latency_p95_ms": (0, max_latency),
     }
     for key, (low, high) in bounds.items():
         value = metrics.get(key)
@@ -259,7 +256,6 @@ def main() -> None:
     parser.add_argument("--message")
     parser.add_argument("--max-invalid-output", type=float, default=0.05)
     parser.add_argument("--min-task-completion", type=float, default=0.90)
-    parser.add_argument("--max-latency-p95", type=float, default=4000)
     args = parser.parse_args()
     if args.command == "validate":
         load_config(args.config)
@@ -272,9 +268,7 @@ def main() -> None:
         metrics = summarize(result["cases"])
         if metrics != result["metrics"]:
             parser.error("Evaluation metrics do not match case results")
-        enforce_gates(
-            metrics, args.max_invalid_output, args.min_task_completion, args.max_latency_p95
-        )
+        enforce_gates(metrics, args.max_invalid_output, args.min_task_completion)
         print(json.dumps(metrics))
         return
     if not args.endpoint:

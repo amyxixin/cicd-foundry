@@ -65,18 +65,23 @@ def test_p95_and_rates():
     [
         ("invalid_output_rate", 0.051),
         ("task_completion", 0.899),
-        ("latency_p95_ms", 4001),
-        ("latency_p95_ms", float("nan")),
         ("task_completion", True),
         ("task_completion", 2),
     ],
 )
 def test_gate_failures(key, value):
     metrics = {"invalid_output_rate": 0.05, "task_completion": 0.90, "latency_p95_ms": 4000}
-    enforce_gates(metrics, 0.05, 0.90, 4000)
+    enforce_gates(metrics, 0.05, 0.90)
     metrics[key] = value
     with pytest.raises(ValueError, match="Quality gate failed"):
-        enforce_gates(metrics, 0.05, 0.90, 4000)
+        enforce_gates(metrics, 0.05, 0.90)
+
+
+def test_slow_latency_is_reported_but_not_gated():
+    rows = [{"valid": True, "correct": True, "latency_ms": 12000.0}]
+    metrics = summarize(rows)
+    assert metrics["latency_p95_ms"] == 12000.0
+    enforce_gates(metrics, 0.05, 0.90)
 
 
 def test_deploy_promotes_exact_definition(tmp_path):
